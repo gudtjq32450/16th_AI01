@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>I AM - My Universe</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Leaflet JS for 2D Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Noto+Sans+KR:wght@300;400;700;900&display=swap');
+
+        /* CSS Variables for Theming */
+        :root {
+            /* Dark Mode (Default - Soopers.gg style) */
+            --bg-base: #0a0b0f;
+            --bg-header: rgba(10, 11, 15, 0.9);
+            --bg-surface: #15171e;
+            --text-main: #f8fafc;
+            --text-muted: #8b949e;
+            --accent-cyan: #00f0ff;
+            --border-color: #2a2d3a;
+            --card-hover-shadow: rgba(0, 240, 255, 0.1);
+        }
+
+        /* Light Mode Override */
+        body.light-mode {
+            --bg-base: #f0f4f8;
+            --bg-header: rgba(240, 244, 248, 0.9);
+            --bg-surface: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --accent-cyan: #0284c7; /* 조금 더 짙은 블루로 가독성 확보 */
+            --border-color: #cbd5e1;
+            --card-hover-shadow: rgba(2, 132, 199, 0.2);
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            margin: 0;
+            overflow: hidden; 
+            height: 100dvh; /* 모바일 브라우저 주소창 고려 */
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+
+        /* Header Dynamic Background */
+        header { background-color: var(--bg-header); border-color: var(--border-color); }
+
+        /* Nav Dropdown Animations */
+        .dropdown-menu {
+            visibility: hidden;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            background-color: var(--bg-surface);
+            border-color: var(--border-color);
+        }
+        .nav-item:hover .dropdown-menu {
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .dropdown-menu a:hover { background-color: var(--bg-base); }
+
+        /* SPA Tab Transitions */
+        .tab-content {
+            display: none;
+            opacity: 0;
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            padding-top: 80px; 
+            padding-bottom: 40px;
+            overflow-y: auto; /* 내용이 길면 내부 스크롤 허용 */
+            animation: fadeInTab 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+        .tab-content.active { display: flex; }
+        @keyframes fadeInTab {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-cyan); }
+
+        /* BGM Player Styling */
+        .bgm-player {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 0 15px var(--card-hover-shadow);
+            transition: all 0.3s ease;
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            background: var(--border-color);
+            border-radius: 5px;
+            height: 4px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+        }
+
+        /* LoL Logo Animation Container */
+        .logo-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 250px;
+            height: 250px;
+            margin: 0 auto;
+        }
+        @media (min-width: 768px) {
+            .logo-wrapper { max-width: 300px; height: 300px; }
+        }
+        .team-logo-img {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: contain;
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
+            transform: scale(0.9);
+            filter: drop-shadow(0 0 20px rgba(128,128,128,0.2));
+        }
+        .team-logo-img.active { opacity: 1; transform: scale(1); }
+
+        /* TFT Master Badge Glow */
+        .tft-master-badge {
+            width: 200px; height: 200px;
+            background: radial-gradient(circle, #b142fe 0%, #6b21a8 60%, #170529 100%);
+            border: 2px solid #d8b4fe;
+            border-radius: 20%;
+            transform: rotate(45deg);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 50px #b142fe;
+            animation: master-pulse 2s infinite alternate;
+        }
+        @media (min-width: 768px) {
+            .tft-master-badge { width: 280px; height: 280px; }
+        }
+        .tft-master-inner { transform: rotate(-45deg); text-align: center; }
+        @keyframes master-pulse {
+            0% { box-shadow: 0 0 30px #b142fe, 0 0 10px inset #d8b4fe; transform: rotate(45deg) scale(0.98); }
+            100% { box-shadow: 0 0 80px #d8b4fe, 0 0 30px inset #ffffff; transform: rotate(45deg) scale(1.02); }
+        }
+
+        /* Movie Posters */
+        .movie-showcase {
+            position: relative;
+            width: 100%;
+            max-width: 280px;
+            height: 400px;
+            margin: 0 auto;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px var(--card-hover-shadow);
+            border: 1px solid var(--border-color);
+        }
+        @media (min-width: 768px) {
+            .movie-showcase { max-width: 350px; height: 500px; }
+        }
+        .movie-poster {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+            object-fit: cover;
+        }
+        .movie-poster.active { opacity: 1; }
+        
+        .movie-overlay {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            padding: 30px 20px 20px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+        .movie-poster.active + .movie-overlay, 
+        .movie-poster.active ~ .movie-overlay { opacity: 1; }
+
+        /* Boardgame Cards */
+        .bg-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+        }
+        .bg-card:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 10px 30px var(--card-hover-shadow);
+        }
+
+        /* 2D Map Canvas */
+        #map {
+            width: 100%;
+            height: 50vh;
+            border-radius: 20px;
+            z-index: 10;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px var(--card-hover-shadow);
+        }
+        @media (min-width: 768px) { #map { height: 60vh; } }
+
+        /* Form Inputs */
+        input[type="text"], textarea {
+            background-color: var(--bg-surface);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 8px var(--card-hover-shadow);
+        }
+
+        /* Progress Circle */
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.5s ease-out;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        /* Highlight Text */
+        .text-cyan-glow {
+            color: var(--accent-cyan);
+            text-shadow: 0 0 10px var(--card-hover-shadow);
+        }
+    </style>
+</head>
+<body class="relative">
+
+    <!-- Header & Navigation -->
+    <header class="fixed w-full z-50 backdrop-blur-md border-b transition-colors duration-500">
+        <div class="container mx-auto px-4 md:px-6 py-3 flex justify-between items-center">
+            <h1 class="text-2xl md:text-3xl font-black tracking-tighter cursor-pointer transition" style="color: var(--text-main);" onclick="switchTab(0)">
+                I AM
+            </h1>
+            
+            <div class="flex items-center gap-4 md:gap-6">
+                <!-- Theme Toggle Button (Updated) -->
+                <button id="theme-toggle" class="flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-300 group" style="border-color: var(--border-color); background-color: var(--bg-surface);">
+                    <span id="theme-text" class="text-[10px] md:text-xs font-bold uppercase tracking-widest transition-colors group-hover:text-[var(--accent-cyan)]" style="color: var(--text-muted);">Dark Mode</span>
+                    <div class="relative w-8 h-4 rounded-full transition-colors duration-300" style="background-color: var(--border-color);">
+                        <div id="theme-knob" class="absolute left-[2px] top-[2px] w-3 h-3 rounded-full transition-all duration-300" style="background-color: var(--text-muted);"></div>
+                    </div>
+                </button>
+
+                <!-- Navigation -->
+                <nav class="hidden md:block">
+                    <ul class="flex space-x-8 text-sm font-semibold" style="color: var(--text-muted);">
+                        <li><a href="#" onclick="switchTab(0)" class="hover:text-[var(--accent-cyan)] transition">Home</a></li>
+                        <li class="nav-item relative group pb-4 -mb-4">
+                            <a href="#" class="hover:text-[var(--accent-cyan)] transition flex items-center gap-1">
+                                취미 <i class="fas fa-chevron-down text-[10px]"></i>
+                            </a>
+                            <div class="dropdown-menu absolute left-1/2 -translate-x-1/2 top-full mt-2 w-40 rounded-lg shadow-2xl overflow-hidden py-2 z-50 border">
+                                <a href="#" onclick="switchTab(1)" class="block px-4 py-2 hover:text-[var(--accent-cyan)] transition">LoL</a>
+                                <a href="#" onclick="switchTab(2)" class="block px-4 py-2 hover:text-[#b142fe] transition">TFT</a>
+                                <a href="#" onclick="switchTab(3)" class="block px-4 py-2 hover:text-red-500 transition">Movies</a>
+                                <a href="#" onclick="switchTab(4)" class="block px-4 py-2 hover:text-green-500 transition">Board Games</a>
+                                <a href="#" onclick="switchTab(5)" class="block px-4 py-2 hover:text-amber-500 transition">Cafes</a>
+                                <a href="#" onclick="switchTab(6)" class="block px-4 py-2 hover:text-[var(--accent-cyan)] transition">Travel</a>
+                            </div>
+                        </li>
+                        <li><a href="#" onclick="switchTab(7)" class="hover:text-[var(--accent-cyan)] transition">Guestbook</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Top Right Progress Gauge -->
+    <div class="fixed top-20 right-4 md:right-8 z-40 flex items-center justify-center w-12 h-12 rounded-full shadow-lg" style="background-color: var(--bg-surface); border: 1px solid var(--border-color);">
+        <svg class="w-10 h-10 absolute">
+            <circle cx="20" cy="20" r="16" stroke="var(--border-color)" stroke-width="3" fill="transparent" />
+            <!-- Circumference = 2 * pi * 16 ≈ 100.53 -->
+            <circle id="progress-circle" class="progress-ring__circle" cx="20" cy="20" r="16" stroke="var(--accent-cyan)" stroke-width="3" fill="transparent" stroke-dasharray="100.53" stroke-dashoffset="100.53" />
+        </svg>
+        <span id="progress-text" class="text-[10px] font-bold" style="color: var(--accent-cyan);">0%</span>
+    </div>
+
+    <!-- NCS BGM Player Widget -->
+    <div class="bgm-player fixed bottom-4 right-4 md:bottom-8 md:right-8 z-50 px-4 py-2 rounded-full flex items-center gap-3 md:gap-4">
+        <i class="fas fa-music text-xs" style="color: var(--text-muted);"></i>
+        <button id="play-pause-btn" class="transition w-6 h-6 flex justify-center items-center" style="color: var(--accent-cyan);">
+            <i class="fas fa-play"></i>
+        </button>
+        <input type="range" id="volume-slider" min="0" max="100" value="30" class="w-16 md:w-20">
+        <div id="youtube-player" class="hidden"></div>
+    </div>
+
+    <!-- Scroll Indicator Dots (Hidden on small mobile for cleaner look) -->
+    <div class="hidden md:flex fixed right-6 top-1/2 -translate-y-1/2 z-40 flex-col gap-3">
+        <div class="w-2 h-2 rounded-full bg-gray-600 transition-all duration-300" id="dot-0"></div>
+        <div class="w-2 h-2 rounded-full bg-gray-600 transition-all duration-300" id="dot-1"></div>
+        <div class="w-2 h-2 rounded-full bg-gray-600 transition-all duration-300" id="dot-2"></div>
+        <div class="w-2 h-2 rounded-full bg-gray-600 transition-all duration-300" id="dot-3"></div>
+        <div class="w-2 h-2 rounded-full bg-gray-600 transition-all duration-300" id="dot-4"></div>
+        <div class="w-2 h-2 rounded-full bg-gray-600 transition-all duration-300" id="dot-5"></div>
+        <div class="w-2 h-2 rounded-full bg-gray-600 transition-all duration-300" id="dot-6"></div>
+        <div class="w-2 h-2 rounded-full bg-gray-600 transition-all duration-300" id="dot-7"></div>
+    </div>
+
+    <main class="w-full h-full relative" id="main-content">
+        
+        <!-- 0. Home Tab -->
+        <section id="home" class="tab-content active flex-col items-center justify-center text-center px-4">
+            <h2 class="text-4xl md:text-7xl font-black mb-4 md:mb-6 tracking-tight leading-tight">WELCOME TO <br><span class="text-cyan-glow">MY UNIVERSE</span></h2>
+            <p class="text-sm md:text-lg max-w-xl mx-auto leading-relaxed mt-2 md:mt-4" style="color: var(--text-muted);">
+                마우스 휠(또는 터치 스와이프)을 통해 저의 취미 세계를 탐험해 보세요.
+            </p>
+            <div class="mt-12 md:mt-16 animate-bounce" style="color: var(--accent-cyan);">
+                <p class="text-xs md:text-sm mb-2 font-semibold">SCROLL DOWN</p>
+                <i class="fas fa-chevron-down text-xl md:text-2xl"></i>
+            </div>
+        </section>
+
+        <!-- 1. LoL Tab -->
+        <section id="lol" class="tab-content flex-col items-center justify-center px-4">
+            <div class="text-center mb-8 md:mb-10">
+                <h2 class="text-3xl md:text-5xl font-black mb-2 md:mb-4 uppercase italic tracking-wider" style="color: var(--accent-cyan);">League of Legends</h2>
+                <p class="text-sm md:text-base" style="color: var(--text-muted);">나의 롤 팬심 변천사. 시대와 함께 변화한 팀의 로고들.</p>
+                <p class="mt-3 text-base md:text-lg italic font-semibold" style="color: var(--text-main);">"남자는 말이여 큰 거 한방 보다는 꾸준함이여"</p>
+            </div>
+            
+            <div class="logo-wrapper">
+                <img src="https://i.namu.wiki/i/Mtv-1GD9nsmsV_HEuknTeZV1GGMzoNE5qaMj2YyoRLezSrpquEP3yJqRnaWBBigNIVjuy3NMIQjIUEGUln82EFMleJmpkLzqaB8dJI4sE96m023wW5wguTubeR31wYEARUihWrx3dxbueWNMGAHusA.svg" alt="Afreeca Freecs" class="team-logo-img active" id="logo-1">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQaa4c8isQeUvcrXEdBmibTXHfPkhSD9ybvtTPWwxFTFhj3W24tvkKGbCA&s=10" alt="Kwangdong Freecs" class="team-logo-img" id="logo-2">
+                <img src="https://i.namu.wiki/i/8fDCvnG8hepEkdkb3fTn8-VWEwMoDw7WG54-ZH9DJANPpoRg7ilLaaErfZ5KjfOaL_LcRQPpM9epclDUjqxPzA.svg" alt="DN Soopers" class="team-logo-img rounded-full border-2 p-4" style="border-color: var(--accent-cyan);" id="logo-3">
+            </div>
+            <div class="h-8 mt-4 md:mt-6 text-center font-bold text-lg md:text-xl" style="color: var(--text-main);" id="logo-name">Afreeca Freecs</div>
+        </section>
+
+        <!-- 2. TFT Tab -->
+        <section id="tft" class="tab-content flex-col items-center justify-center px-4">
+            <div class="text-center mb-10 md:mb-16">
+                <h2 class="text-3xl md:text-5xl font-black mb-2 md:mb-4 text-[#b142fe] uppercase tracking-wider">TFT <span class="text-lg md:text-2xl" style="color: var(--text-muted);">Teamfight Tactics</span></h2>
+                <p class="text-sm md:text-base" style="color: var(--text-muted);">전략과 운의 조화. 목표는 항상 최상위 포식자.</p>
+                <p class="mt-3 text-base md:text-lg italic font-semibold" style="color: var(--text-main);">"리롤보단 고벨류... 운영방식은 1 or 8"</p>
+            </div>
+
+            <div class="tft-master-badge">
+                <div class="tft-master-inner">
+                    <i class="fas fa-gem text-5xl md:text-6xl text-white mb-2 md:mb-3 drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]"></i>
+                    <h3 class="text-2xl md:text-3xl font-black tracking-widest text-white drop-shadow-md">MASTER</h3>
+                    <p class="text-[#e9d5ff] text-xs md:text-sm mt-1 md:mt-2 font-bold tracking-widest opacity-80">TIER ACHIEVED</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Movies Tab -->
+        <section id="movies" class="tab-content flex-col items-center justify-center px-4">
+            <div class="text-center mb-6 md:mb-8">
+                <h2 class="text-3xl md:text-4xl font-black mb-2 text-red-500 uppercase tracking-wider">Movies</h2>
+                <p class="text-sm md:text-base" style="color: var(--text-muted);">내 인생을 스쳐간 명작들</p>
+                <p class="mt-3 text-base md:text-lg italic font-semibold" style="color: var(--text-main);">"별점 1점을 봐도 시간은 잘가"</p>
+            </div>
+
+            <div class="movie-showcase">
+                <img src="https://i.namu.wiki/i/ws6yJDqL_JxkiomsfeRGft690tM-QH_tB2CJCEgoXi6t9X0BdjMC94aIAJk48SPPYZHj7uxeYVp83pZfSFdYCw.webp" class="movie-poster active" id="movie-1" alt="범죄와의 전쟁">
+                <img src="https://i.namu.wiki/i/mtRB0r36gtDzvae0RPzJd4C_iC7EtxvDcHe056ICVcrE9d5X-Up3zUzZWMVqetYhMR5m8oHiJFH7RZ320jRStA.webp" class="movie-poster" id="movie-2" alt="어벤져스">
+                <img src="https://i.namu.wiki/i/GZPda-0b0Cb-4jxFo8Y0Rp-jkd0Ti02bgaRk_Gdim8Eyh9pxtfy0YsBC2a9p0o1IvREsPKQ-IVEk7R2HkQojYw.webp" class="movie-poster" id="movie-3" alt="나는 내일, 어제의 너와 만난다">
+                
+                <div class="movie-overlay">
+                    <h3 class="text-xl md:text-2xl font-bold text-white mb-1" id="movie-title">범죄와의 전쟁</h3>
+                    <p class="text-gray-300 text-xs md:text-sm" id="movie-desc">나쁜 놈들의 전성시대</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. Board Games Tab -->
+        <section id="boardgames" class="tab-content flex-col items-center justify-center px-4">
+            <div class="text-center mb-6 md:mb-10 mt-10 md:mt-0">
+                <h2 class="text-3xl md:text-4xl font-black mb-2 text-green-500 uppercase tracking-wider">Board Games</h2>
+                <p class="text-sm md:text-base" style="color: var(--text-muted);">친구들과 함께하면 시간 가는 줄 모르는 게임들</p>
+                <p class="mt-3 text-base md:text-lg italic font-semibold" style="color: var(--text-main);">"내가 이길 생각보다는 상대를 담굴 생각을"</p>
+            </div>
+
+            <div class="flex flex-wrap justify-center gap-3 md:gap-4 max-w-5xl mx-auto w-full">
+                <!-- BANG -->
+                <div class="bg-card w-32 md:w-40 h-44 md:h-56 rounded-xl flex flex-col items-center justify-center p-3 md:p-4 hover:-translate-y-2 transition duration-300 cursor-pointer group">
+                    <i class="fas fa-bomb text-3xl md:text-4xl text-red-500 mb-2 md:mb-3 group-hover:scale-110 transition"></i>
+                    <h3 class="text-lg md:text-xl font-black" style="color: var(--text-main);">BANG!</h3>
+                    <p class="text-[9px] md:text-[10px] mt-2 text-center" style="color: var(--text-muted);">보안관과 무법자의 대결</p>
+                </div>
+                <!-- Rummikub -->
+                <div class="bg-card w-32 md:w-40 h-44 md:h-56 rounded-xl flex flex-col items-center justify-center p-3 md:p-4 hover:-translate-y-2 transition duration-300 cursor-pointer group">
+                    <i class="fas fa-layer-group text-3xl md:text-4xl text-blue-500 mb-2 md:mb-3 group-hover:scale-110 transition"></i>
+                    <h3 class="text-lg md:text-xl font-black" style="color: var(--text-main);">Rummikub</h3>
+                    <p class="text-[9px] md:text-[10px] mt-2 text-center" style="color: var(--text-muted);">숫자 타일의 마법</p>
+                </div>
+                <!-- Splendor -->
+                <div class="bg-card w-32 md:w-40 h-44 md:h-56 rounded-xl flex flex-col items-center justify-center p-3 md:p-4 hover:-translate-y-2 transition duration-300 cursor-pointer group">
+                    <i class="fas fa-gem text-3xl md:text-4xl text-emerald-500 mb-2 md:mb-3 group-hover:scale-110 transition"></i>
+                    <h3 class="text-lg md:text-xl font-black" style="color: var(--text-main);">Splendor</h3>
+                    <p class="text-[9px] md:text-[10px] mt-2 text-center" style="color: var(--text-muted);">보석 상인의 길</p>
+                </div>
+                <!-- Halli Galli -->
+                <div class="bg-card w-32 md:w-40 h-44 md:h-56 rounded-xl flex flex-col items-center justify-center p-3 md:p-4 hover:-translate-y-2 transition duration-300 cursor-pointer group">
+                    <i class="fas fa-bell text-3xl md:text-4xl text-yellow-500 mb-2 md:mb-3 group-hover:scale-110 transition"></i>
+                    <h3 class="text-lg md:text-xl font-black" style="color: var(--text-main);">할리갈리</h3>
+                    <p class="text-[9px] md:text-[10px] mt-2 text-center" style="color: var(--text-muted);">과일 5개면 종을 쳐라!</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. Cafes Tab -->
+        <section id="cafes" class="tab-content flex-col items-center justify-center px-4">
+            <div class="text-center mb-6 md:mb-8 mt-10 md:mt-0">
+                <h2 class="text-3xl md:text-4xl font-black mb-2 text-amber-500 uppercase tracking-wider">Cafe Views</h2>
+                <p class="text-sm md:text-base" style="color: var(--text-muted);">커피 한 잔의 여유, 창밖으로 바라본 아름다운 풍경들</p>
+                <p class="mt-3 text-base md:text-lg italic font-semibold" style="color: var(--text-main);">"솔직히 커피 맛은 잘 몰라요. 막입이라"</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 max-w-4xl mx-auto w-full">
+                <div class="rounded-xl overflow-hidden relative group h-32 md:h-48 border" style="border-color: var(--border-color);">
+                    <img src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?q=80&w=600&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
+                    <div class="absolute bottom-0 w-full p-2 md:p-3 bg-gradient-to-t from-black/80 to-transparent">
+                        <h3 class="text-sm md:text-lg font-bold text-white">도심 속 여유</h3>
+                    </div>
+                </div>
+                <div class="rounded-xl overflow-hidden relative group h-32 md:h-48 border" style="border-color: var(--border-color);">
+                    <img src="https://images.unsplash.com/photo-1445116572660-236099ec97a0?q=80&w=600&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
+                    <div class="absolute bottom-0 w-full p-2 md:p-3 bg-gradient-to-t from-black/80 to-transparent">
+                        <h3 class="text-sm md:text-lg font-bold text-white">바다가 보이는 창가</h3>
+                    </div>
+                </div>
+                <div class="rounded-xl overflow-hidden relative group h-40 md:h-56 md:col-span-2 border" style="border-color: var(--border-color);">
+                    <img src="https://images.unsplash.com/photo-1509042239860-f550ce710b93?q=80&w=1200&auto=format&fit=crop" class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
+                    <div class="absolute bottom-0 w-full p-3 md:p-4 bg-gradient-to-t from-black/80 to-transparent">
+                        <h3 class="text-base md:text-xl font-bold text-white">비 오는 날의 따뜻함</h3>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. Travel Tab -->
+        <section id="travel" class="tab-content flex-col items-center justify-center px-4">
+            <div class="text-center mb-4 md:mb-6 w-full mt-10 md:mt-0">
+                <h2 class="text-3xl md:text-4xl font-black mb-2 uppercase tracking-wider" style="color: var(--accent-cyan);">Travel Route</h2>
+                <p class="text-sm md:text-base" style="color: var(--text-muted);">유라시아 대륙 횡단의 기록</p>
+                <p class="mt-3 text-base md:text-lg italic font-semibold" style="color: var(--text-main);">"외국어 울렁증은 극복하는 것이 아니라, 살아남기위해서"</p>
+                <div id="current-location-label" class="mt-4 text-xl md:text-2xl font-bold h-8 text-cyan-glow">Preparing Map...</div>
+            </div>
+
+            <div class="max-w-5xl mx-auto w-full md:w-11/12">
+                <!-- Leaflet Map Container -->
+                <div id="map"></div>
+            </div>
+        </section>
+        
+        <!-- 7. Guestbook Tab (New Feature) -->
+        <section id="guestbook" class="tab-content flex-col items-center px-4">
+            <div class="w-full max-w-2xl mx-auto mt-10">
+                <div class="text-center mb-8">
+                    <h2 class="text-3xl md:text-4xl font-black mb-2 uppercase tracking-wider" style="color: var(--text-main);">Recommendations</h2>
+                    <p class="text-sm md:text-base" style="color: var(--text-muted);">여러분이 알고 있는 최고의 영화, 보드게임, 카페, 여행지를 추천해주세요!</p>
+                </div>
+                
+                <!-- Comment Form -->
+                <form id="comment-form" class="mb-8 p-4 md:p-6 rounded-xl shadow-lg" style="background-color: var(--bg-surface); border: 1px solid var(--border-color);">
+                    <!-- Category Selector -->
+                    <div class="mb-5">
+                        <label class="block text-sm font-bold mb-3" style="color: var(--text-muted);">어떤 분야를 추천해주실 건가요?</label>
+                        <div class="flex flex-wrap gap-2" id="category-selector">
+                            <button type="button" class="category-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all border border-[var(--accent-cyan)] bg-[var(--accent-cyan)] text-[var(--bg-base)]" data-cat="🎬 영화" data-color="#ef4444">🎬 영화</button>
+                            <button type="button" class="category-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all border border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--accent-cyan)]" data-cat="🎲 보드게임" data-color="#22c55e">🎲 보드게임</button>
+                            <button type="button" class="category-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all border border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--accent-cyan)]" data-cat="☕ 카페" data-color="#f59e0b">☕ 카페</button>
+                            <button type="button" class="category-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all border border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--accent-cyan)]" data-cat="✈️ 여행지" data-color="#0ea5e9">✈️ 여행지</button>
+                        </div>
+                        <input type="hidden" id="selected-category" value="🎬 영화">
+                        <input type="hidden" id="selected-color" value="#ef4444">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-bold mb-2" style="color: var(--text-muted);">추천인 (닉네임)</label>
+                        <input type="text" id="comment-name" required class="w-full px-4 py-2 rounded-lg text-sm transition" placeholder="이름을 입력하세요">
+                    </div>
+                    <div class="mb-5">
+                        <label class="block text-sm font-bold mb-2" style="color: var(--text-muted);">추천 내용</label>
+                        <textarea id="comment-text" required rows="3" class="w-full px-4 py-2 rounded-lg text-sm resize-none transition" placeholder="이 영화의 연출이 정말 기가 막힙니다! 꼭 보세요."></textarea>
+                    </div>
+                    <button type="submit" class="w-full font-bold py-3 px-4 rounded-lg transition hover:opacity-90" style="background-color: var(--accent-cyan); color: var(--bg-base);">
+                        강력 추천하기
+                    </button>
+                </form>
+
+                <!-- Comment List -->
+                <div id="comment-list" class="space-y-4 pb-20">
+                    <!-- Default Comment -->
+                    <div class="p-4 rounded-xl border" style="background-color: var(--bg-surface); border-color: var(--border-color);">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h4 class="font-bold text-sm inline-block mr-2" style="color: var(--accent-cyan);">운영자</h4>
+                                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold text-white bg-[#ef4444]">🎬 영화</span>
+                            </div>
+                            <span class="text-xs" style="color: var(--text-muted);">방금 전</span>
+                        </div>
+                        <p class="text-sm mt-2" style="color: var(--text-main);">다크나이트 강력 추천합니다! 몇 번을 봐도 명작이에요.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // --- 0. State Variables ---
+        const tabs = ['home', 'lol', 'tft', 'movies', 'boardgames', 'cafes', 'travel', 'guestbook'];
+        let currentTabIndex = 0;
+        let isScrolling = false;
+        
+        // --- Theme Toggle Logic ---
+        const themeBtn = document.getElementById('theme-toggle');
+        const themeText = document.getElementById('theme-text');
+        const themeKnob = document.getElementById('theme-knob');
+        let isLightMode = false;
+
+        themeBtn.addEventListener('click', () => {
+            isLightMode = !isLightMode;
+            document.body.classList.toggle('light-mode', isLightMode);
+            
+            if (isLightMode) {
+                themeText.innerText = "Light Mode";
+                themeKnob.style.transform = "translateX(16px)"; // Knob 오른쪽으로 이동
+                themeKnob.style.backgroundColor = "var(--accent-cyan)";
+            } else {
+                themeText.innerText = "Dark Mode";
+                themeKnob.style.transform = "translateX(0)"; // Knob 원위치
+                themeKnob.style.backgroundColor = "var(--text-muted)";
+            }
+        });
+
+        // --- 1. SPA Full-Page Navigation & Progress Gauge ---
+        function updateProgress(index) {
+            const totalSteps = tabs.length - 1;
+            const percentage = Math.round((index / totalSteps) * 100);
+            
+            // Text Update
+            document.getElementById('progress-text').innerText = `${percentage}%`;
+            
+            // SVG Circle Dashoffset Update
+            const circle = document.getElementById('progress-circle');
+            const circumference = 100.53; // 2 * pi * 16
+            const offset = circumference - (percentage / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+        }
+
+        function switchTab(index) {
+            if (index < 0 || index >= tabs.length) return;
+            
+            // Hide all tabs
+            const tabElements = document.querySelectorAll('.tab-content');
+            tabElements.forEach(tab => tab.classList.remove('active'));
+
+            // Show selected tab
+            document.getElementById(tabs[index]).classList.add('active');
+            currentTabIndex = index;
+
+            // Update Scroll Dots (Desktop only visual)
+            for(let i=0; i<tabs.length; i++){
+                const dot = document.getElementById(`dot-${i}`);
+                if(dot) { // dot element exists
+                    if(i === index) {
+                        dot.className = "w-3 h-3 rounded-full shadow-[0_0_8px_currentColor] transition-all duration-300";
+                        dot.style.backgroundColor = "var(--accent-cyan)";
+                        dot.style.color = "var(--accent-cyan)";
+                    } else {
+                        dot.className = "w-2 h-2 rounded-full bg-gray-400 transition-all duration-300 cursor-pointer";
+                        dot.style.backgroundColor = "";
+                        dot.style.color = "";
+                    }
+                }
+            }
+            
+            // Update Progress Gauge
+            updateProgress(index);
+
+            // Init Map instantly if Travel tab
+            if(tabs[index] === 'travel') {
+                if (!mapInitialized) {
+                    initMap();
+                } else {
+                    startTour(); 
+                }
+            }
+        }
+
+        // Wheel Event Listener (Scroll Jacking with internal scroll check)
+        window.addEventListener('wheel', (e) => {
+            if (isScrolling) return;
+
+            // 방명록 등 내용이 길어서 내부 스크롤이 발생해야 하는 탭 처리
+            const activeTab = document.querySelector('.tab-content.active');
+            if (activeTab) {
+                const isScrollable = activeTab.scrollHeight > activeTab.clientHeight;
+                const isAtTop = activeTab.scrollTop === 0;
+                const isAtBottom = Math.abs(activeTab.scrollHeight - activeTab.clientHeight - activeTab.scrollTop) < 1;
+
+                if (isScrollable) {
+                    if (e.deltaY > 0 && !isAtBottom) return; // 아래로 스크롤 중이며 아직 바닥이 아니면 탭 전환 방지
+                    if (e.deltaY < 0 && !isAtTop) return;    // 위로 스크롤 중이며 아직 꼭대기가 아니면 탭 전환 방지
+                }
+            }
+
+            if (e.deltaY > 50) { // Scroll Down
+                if (currentTabIndex < tabs.length - 1) {
+                    isScrolling = true;
+                    switchTab(currentTabIndex + 1);
+                    setTimeout(() => isScrolling = false, 800); 
+                }
+            } else if (e.deltaY < -50) { // Scroll Up
+                if (currentTabIndex > 0) {
+                    isScrolling = true;
+                    switchTab(currentTabIndex - 1);
+                    setTimeout(() => isScrolling = false, 800);
+                }
+            }
+        });
+
+        // Touch Swipe Support for Mobile
+        let touchStartY = 0;
+        let touchEndY = 0;
+        window.addEventListener('touchstart', e => { touchStartY = e.changedTouches[0].screenY; });
+        window.addEventListener('touchend', e => {
+            touchEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+        });
+        function handleSwipe() {
+            if (isScrolling) return;
+            const activeTab = document.querySelector('.tab-content.active');
+            if (activeTab && activeTab.scrollHeight > activeTab.clientHeight) {
+                // 내부 스크롤이 있는 경우 모바일에서는 자연스러운 스크롤 허용을 위해 스와이프 탭 전환을 약하게 제한
+                return;
+            }
+
+            if (touchStartY - touchEndY > 50) { // Swipe Up (Scroll Down)
+                if (currentTabIndex < tabs.length - 1) {
+                    isScrolling = true; switchTab(currentTabIndex + 1); setTimeout(() => isScrolling = false, 800);
+                }
+            } else if (touchEndY - touchStartY > 50) { // Swipe Down (Scroll Up)
+                if (currentTabIndex > 0) {
+                    isScrolling = true; switchTab(currentTabIndex - 1); setTimeout(() => isScrolling = false, 800);
+                }
+            }
+        }
+
+        // Initialize dots click event
+        tabs.forEach((_, i) => {
+            const dot = document.getElementById(`dot-${i}`);
+            if(dot) dot.addEventListener('click', () => { if(!isScrolling) switchTab(i); });
+        });
+
+
+        // --- 2. YouTube BGM Player ---
+        let ytPlayer;
+        function onYouTubeIframeAPIReady() {
+            ytPlayer = new YT.Player('youtube-player', {
+                height: '0', width: '0',
+                videoId: 'JNl1_hRwpXE', 
+                playerVars: { 'autoplay': 1, 'controls': 0, 'loop': 1, 'playlist': 'JNl1_hRwpXE' },
+                events: { 'onReady': onPlayerReady }
+            });
+        }
+        let isPlaying = false;
+        function onPlayerReady(event) {
+            ytPlayer.setVolume(30);
+            const playBtn = document.getElementById('play-pause-btn');
+            playBtn.addEventListener('click', () => {
+                if (isPlaying) {
+                    ytPlayer.pauseVideo();
+                    playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    isPlaying = false;
+                } else {
+                    ytPlayer.playVideo();
+                    playBtn.innerHTML = '<i class="fas fa-pause"></i>';
+                    isPlaying = true;
+                }
+            });
+            document.getElementById('volume-slider').addEventListener('input', (e) => { ytPlayer.setVolume(e.target.value); });
+        }
+
+
+        // --- 3. LoL Logo Auto-Rotation ---
+        const teamNames = ["Afreeca Freecs", "Kwangdong Freecs", "DN Soopers"];
+        let currentLogo = 1;
+        setInterval(() => {
+            document.getElementById(`logo-${currentLogo}`).classList.remove('active');
+            currentLogo = currentLogo >= 3 ? 1 : currentLogo + 1;
+            document.getElementById(`logo-${currentLogo}`).classList.add('active');
+            document.getElementById('logo-name').innerText = teamNames[currentLogo-1];
+        }, 3000); 
+
+
+        // --- 4. Movie Slider ---
+        const movieTitles = ["범죄와의 전쟁", "어벤져스", "나는 내일, 어제의 너와 만난다"];
+        const movieDescs = ["나쁜 놈들의 전성시대", "Avengers Assemble!", "시간을 교차하는 로맨스"];
+        let currentMovie = 1;
+        setInterval(() => {
+            document.getElementById(`movie-${currentMovie}`).classList.remove('active');
+            currentMovie = currentMovie >= 3 ? 1 : currentMovie + 1;
+            document.getElementById(`movie-${currentMovie}`).classList.add('active');
+            
+            const titleEl = document.getElementById('movie-title');
+            const descEl = document.getElementById('movie-desc');
+            titleEl.style.opacity = 0; descEl.style.opacity = 0;
+            
+            setTimeout(() => {
+                titleEl.innerText = movieTitles[currentMovie-1];
+                descEl.innerText = movieDescs[currentMovie-1];
+                titleEl.style.opacity = 1; descEl.style.opacity = 1;
+            }, 300);
+        }, 4000);
+
+
+        // --- 5. Interactive 2D Map (Leaflet) ---
+        let mapInitialized = false;
+        let map;
+        let currentTourIndex = 0;
+        let tourTimeout;
+
+        const travelRoute = [
+            { name: "상트페테르부르크 (Russia)", lat: 59.9311, lon: 30.3609 },
+            { name: "탈린 (Estonia)", lat: 59.4370, lon: 24.7536 },
+            { name: "리가 (Latvia)", lat: 56.9496, lon: 24.1052 },
+            { name: "빌뉴스 (Lithuania)", lat: 54.6872, lon: 25.2797 },
+            { name: "바르샤바 (Poland)", lat: 52.2297, lon: 21.0122 },
+            { name: "부다페스트 (Hungary)", lat: 47.4979, lon: 19.0402 },
+            { name: "빈 (Austria)", lat: 48.2082, lon: 16.3738 },
+            { name: "프라하 (Czechia)", lat: 50.0755, lon: 14.4378 },
+            { name: "베를린 (Germany)", lat: 52.5200, lon: 13.4050 }
+        ];
+
+        function initMap() {
+            if(mapInitialized) return;
+            mapInitialized = true;
+            document.getElementById('current-location-label').innerText = "Map Loaded";
+
+            map = L.map('map', { zoomControl: false, scrollWheelZoom: false }).setView([travelRoute[0].lat, travelRoute[0].lon], 5);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OSM & CARTO', subdomains: 'abcd', maxZoom: 20
+            }).addTo(map);
+
+            const latlngs = travelRoute.map(loc => [loc.lat, loc.lon]);
+            L.polyline(latlngs, { color: '#00f0ff', weight: 3, opacity: 0.6, dashArray: '10, 10' }).addTo(map);
+
+            travelRoute.forEach((loc, index) => {
+                const marker = L.circleMarker([loc.lat, loc.lon], {
+                    radius: 6, fillColor: index === 0 ? "#ff0055" : "#00f0ff", color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.8
+                }).addTo(map);
+                marker.bindPopup(`<b style="color: #0a0b0f;">${loc.name}</b>`);
+            });
+
+            window.addEventListener('resize', () => { if (map) map.invalidateSize(); });
+            setTimeout(() => { startTour(); }, 500);
+        }
+
+        function startTour() {
+            clearTimeout(tourTimeout); 
+            if (!document.getElementById('travel').classList.contains('active')) return;
+            const location = travelRoute[currentTourIndex];
+            document.getElementById('current-location-label').innerText = `📍 ${location.name}`;
+            map.flyTo([location.lat, location.lon], 6, { animate: true, duration: 2.5 });
+            tourTimeout = setTimeout(() => {
+                currentTourIndex = (currentTourIndex + 1) % travelRoute.length;
+                startTour();
+            }, 4500); 
+        }
+
+        // --- 6. Guestbook (Recommendation) Form Logic ---
+        
+        // Category Selection
+        const categoryBtns = document.querySelectorAll('.category-btn');
+        const categoryInput = document.getElementById('selected-category');
+        const colorInput = document.getElementById('selected-color');
+
+        categoryBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Reset all buttons style
+                categoryBtns.forEach(b => {
+                    b.className = 'category-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all border border-[var(--border-color)] text-[var(--text-muted)] hover:border-[var(--accent-cyan)]';
+                    b.style.backgroundColor = 'transparent';
+                    b.style.color = 'var(--text-muted)';
+                });
+                
+                // Set active button style
+                const target = e.currentTarget;
+                target.className = 'category-btn px-4 py-1.5 rounded-full text-xs font-bold transition-all border';
+                target.style.borderColor = 'var(--accent-cyan)';
+                target.style.backgroundColor = 'var(--accent-cyan)';
+                target.style.color = 'var(--bg-base)';
+                
+                // Update hidden inputs
+                categoryInput.value = target.getAttribute('data-cat');
+                colorInput.value = target.getAttribute('data-color');
+            });
+        });
+
+        document.getElementById('comment-form').addEventListener('submit', (e) => {
+            e.preventDefault(); // 페이지 새로고침 방지
+            
+            const name = document.getElementById('comment-name').value;
+            const text = document.getElementById('comment-text').value;
+            const category = categoryInput.value;
+            const catColor = colorInput.value;
+            
+            if (!name || !text) return;
+
+            const list = document.getElementById('comment-list');
+            const newComment = document.createElement('div');
+            newComment.className = 'p-4 rounded-xl border mt-4 opacity-0 transition-opacity duration-500';
+            newComment.style.backgroundColor = 'var(--bg-surface)';
+            newComment.style.borderColor = 'var(--border-color)';
+            
+            newComment.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <h4 class="font-bold text-sm inline-block mr-2" style="color: var(--accent-cyan);">${name}</h4>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold text-white" style="background-color: ${catColor};">${category}</span>
+                    </div>
+                    <span class="text-xs" style="color: var(--text-muted);">방금 전</span>
+                </div>
+                <p class="text-sm mt-2 whitespace-pre-line" style="color: var(--text-main);">${text}</p>
+            `;
+            
+            // 최상단에 추가
+            list.insertBefore(newComment, list.firstChild);
+            
+            // 페이드 인 효과
+            setTimeout(() => newComment.classList.remove('opacity-0'), 10);
+
+            // 입력창 초기화
+            document.getElementById('comment-name').value = '';
+            document.getElementById('comment-text').value = '';
+        });
+
+        // Initialize first tab progress on load
+        updateProgress(0);
+
+    </script>
+</body>
+</html>
